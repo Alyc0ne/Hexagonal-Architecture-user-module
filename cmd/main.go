@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/cache"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/handler"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/repository"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/core/domain"
@@ -14,14 +13,12 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 var (
-	msgService     *services.MessengerService
-	userService    *services.UserService
-	paymentService *services.PaymentService
+	userService services.UserUsecaseService
 )
 
 func main() {
@@ -30,86 +27,42 @@ func main() {
 		panic(err)
 	}
 
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	db, err := gorm.Open("postgres", conn)
+	con := "%s:%s@/%s?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open("mysql", fmt.Sprintf(con, user, password, dbname))
 	if err != nil {
-		panic(err)
-	}
-
-	redisCache, err := cache.NewRedisCache("127.0.0.1:6379", "")
-	if err != nil {
-		panic(err)
+		log.Fatalln("Failed to connect to database:", err)
 	}
 
 	logger.SetupLogger()
 
-	// Create or modify the database tables based on the model structs found in the imported package
-	db.AutoMigrate(&domain.Message{}, &domain.User{}, &domain.Payment{})
+	db.AutoMigrate(&domain.User{}, &domain.ForgetPassword{})
 
-	store := repository.NewDB(db, redisCache)
-
-	msgService = services.NewMessengerService(store)
-	userService = services.NewUserService(store)
-	paymentService = services.NewPaymentService(store)
+	userRepo := repository.NewUserRepository(db)
+	userService = services.NewUserUsecase(userRepo)
 
 	InitRoutes()
 }
 
 func InitRoutes() {
 	router := gin.Default()
-	router2 := gin.Default()
 
 	pprof.Register(router)
-	pprof.Register(router2)
 
 	v1 := router.Group("/v1")
 
-	messageHandler := handler.NewMessageHandler(*msgService)
-	v1.GET("/messages/:id", messageHandler.ReadMessage)
-	v1.GET("/messages", messageHandler.ReadMessages)
-	v1.POST("/messages", messageHandler.CreateMessage)
-	v1.PUT("/messages/:id", messageHandler.UpdateMessage)
-	v1.DELETE("/messages/:id", messageHandler.DeleteMessage)
-
-	userHandler := handler.NewUserHandler(*userService)
-	v1.GET("/users/:id", userHandler.ReadUser)
-	v1.GET("/users", userHandler.ReadUsers)
-	v1.POST("/users", userHandler.CreateUser)
-	v1.PUT("/users", userHandler.UpdateUser)
-	v1.DELETE("/users", userHandler.DeleteUser)
+	userHandler := handler.NewUserHttpHandler(userService)
 
 	v1.POST("/login", userHandler.LoginUser)
-	v1.POST("/membership/webhooks", userHandler.UpdateMembershipStatus)
-
-	v2 := router2.Group("/v2")
-	paymentHandler := handler.NewPaymentHandler(*paymentService)
-	v2.POST("/create-checkout-session", paymentHandler.CreateCheckoutSession)
-
-	// v2.POST("?success=true", paymentHandler.CreateCheckoutSession)
-	// v2.POST("/wallet/deposit", paymentHandler.Deposit)
-	// v2.POST("/wallet/withdraw", paymentHandler.Withdraw)
+	v1.POST("/forgetpassword", userHandler.ForgetPassword)
+	v1.PUT("/reset-password", userHandler.ResetPassword)
+	v1.POST("/users", userHandler.CreateUser)
 
 	err := router.Run(":4242")
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
-
-	// go func() {
-	// 	if err := router.Run(":5000"); err != nil {
-	// 		log.Fatalf("failed to run messages and users service: %v", err)
-	// 	}
-	// }()
-
-	// if err := router2.Run(":4242"); err != nil {
-	// 	log.Fatalf("failed to run payments service: %v", err)
-	// }
-
 }
