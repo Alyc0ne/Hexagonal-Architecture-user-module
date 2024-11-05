@@ -12,12 +12,17 @@ import (
 )
 
 type mockUserRepository struct {
+	countUserByEmail     func(email string) (int, error)
 	findUserByEmail      func(email string) (*domain.User, error)
 	findUserByResetToken func(resetToken string) (*domain.ForgetPassword, error)
 
 	createUser           func(userModel *domain.User) error
 	updateUser           func(userModel *domain.User) error
 	createForgetPassword func(forgetPasswordModel *domain.ForgetPassword) error
+}
+
+func (m *mockUserRepository) CountUserByEmail(email string) (int, error) {
+	return m.countUserByEmail(email)
 }
 
 func (m *mockUserRepository) FindUserByEmail(email string) (*domain.User, error) {
@@ -83,8 +88,8 @@ func TestLoginUser(t *testing.T) {
 func TestCreateUser(t *testing.T) {
 	t.Run("Create User Success", func(t *testing.T) {
 		mockRepo := &mockUserRepository{
-			findUserByEmail: func(email string) (*domain.User, error) {
-				return nil, nil
+			countUserByEmail: func(email string) (int, error) {
+				return 0, nil
 			},
 			createUser: func(userModel *domain.User) error {
 				return nil
@@ -101,8 +106,8 @@ func TestCreateUser(t *testing.T) {
 
 	t.Run("Create User Fail, User Already Exists", func(t *testing.T) {
 		mockRepo := &mockUserRepository{
-			findUserByEmail: func(email string) (*domain.User, error) {
-				return &domain.User{ID: uuid.New().String(), Email: "quardruple@gmail.com"}, nil
+			countUserByEmail: func(email string) (int, error) {
+				return 1, nil
 			},
 			createUser: func(userModel *domain.User) error {
 				return nil
