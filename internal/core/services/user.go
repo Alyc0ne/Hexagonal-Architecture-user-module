@@ -10,13 +10,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+
+	userPb "github.com/LordMoMA/Hexagonal-Architecture/internal/core/proto/user"
 )
 
 type (
 	UserUsecaseService interface {
+		LoginGrpc(req *userPb.LoginGrpcReq) (*userPb.LoginGrpcRes, error)
 		LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes, error)
+
+		CreateUserGrpc(req *userPb.CreateUserGrpcReq) (*userPb.CreateUserGrpcRes, error)
 		CreateUser(req *domain.CreateUserReq) error
+
+		ForgetPasswordGrpc(req *userPb.ForgetPasswordReq) (*userPb.ForgetPasswordRes, error)
 		ForgetPassword(req *domain.ForgetPasswordReq) (*domain.ForgetPasswordRes, error)
+
+		ResetPasswordGrpc(req *userPb.ResetPasswordReq) (*userPb.ResetPasswordRes, error)
 		ResetPassword(req *domain.ResetPasswordReq) error
 	}
 
@@ -95,7 +104,7 @@ func (u *userUsecase) generateAccessTokenByLogin(JWTSecret, userId string) (*dom
 	}, nil
 }
 
-func (u *userUsecase) LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes, error) {
+func (u *userUsecase) loginLogic(req *domain.LoginUserReq) (*domain.LoginUserRes, error) {
 	user, err := u.checkHasUser(req.Email)
 	if err != nil {
 		return nil, err
@@ -121,18 +130,41 @@ func (u *userUsecase) LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes,
 	}, nil
 }
 
-func (u *userUsecase) CreateUser(req *domain.CreateUserReq) error {
+func (u *userUsecase) LoginGrpc(req *userPb.LoginGrpcReq) (*userPb.LoginGrpcRes, error) {
+	loginLogicReq := &domain.LoginUserReq{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+	loginLogicRes, err := u.loginLogic(loginLogicReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userPb.LoginGrpcRes{
+		Id:           loginLogicRes.ID,
+		Email:        loginLogicRes.Email,
+		AccessToken:  loginLogicRes.AccessToken,
+		RefreshToken: loginLogicRes.RefreshToken,
+	}, nil
+}
+
+func (u *userUsecase) LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes, error) {
+	return u.loginLogic(req)
+}
+
+func (u *userUsecase) createUserLogic(req *domain.CreateUserReq) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("password not hashed: %v", err)
 	}
 
-	userRes, err := u.userRepository.FindUserByEmail(req.Email)
+	countUser, err := u.userRepository.CountUserByEmail(req.Email)
+	fmt.Println("err: ", err)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
-	if userRes != nil && userRes.ID != "" && userRes.Email == req.Email {
+	if countUser > 0 {
 		return errors.New("user already exists")
 	}
 
@@ -150,7 +182,26 @@ func (u *userUsecase) CreateUser(req *domain.CreateUserReq) error {
 	return nil
 }
 
-func (u *userUsecase) ForgetPassword(req *domain.ForgetPasswordReq) (*domain.ForgetPasswordRes, error) {
+func (u *userUsecase) CreateUserGrpc(req *userPb.CreateUserGrpcReq) (*userPb.CreateUserGrpcRes, error) {
+	createUserReq := &domain.CreateUserReq{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+	err := u.createUserLogic(createUserReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userPb.CreateUserGrpcRes{
+		Message: "New user created successfully",
+	}, nil
+}
+
+func (u *userUsecase) CreateUser(req *domain.CreateUserReq) error {
+	return u.createUserLogic(req)
+}
+
+func (u *userUsecase) forgetPasswordLogic(req *domain.ForgetPasswordReq) (*domain.ForgetPasswordRes, error) {
 	_, err := u.checkHasUser(req.Email)
 	if err != nil {
 		return nil, err
@@ -172,7 +223,25 @@ func (u *userUsecase) ForgetPassword(req *domain.ForgetPasswordReq) (*domain.For
 	}, nil
 }
 
-func (u *userUsecase) ResetPassword(req *domain.ResetPasswordReq) error {
+func (u *userUsecase) ForgetPasswordGrpc(req *userPb.ForgetPasswordReq) (*userPb.ForgetPasswordRes, error) {
+	forgetPasswordReq := &domain.ForgetPasswordReq{
+		Email: req.Email,
+	}
+	forgetPasswordRes, err := u.forgetPasswordLogic(forgetPasswordReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userPb.ForgetPasswordRes{
+		ResetToken: forgetPasswordRes.ResetToken,
+	}, nil
+}
+
+func (u *userUsecase) ForgetPassword(req *domain.ForgetPasswordReq) (*domain.ForgetPasswordRes, error) {
+	return u.forgetPasswordLogic(req)
+}
+
+func (u *userUsecase) resetPasswordLogic(req *domain.ResetPasswordReq) error {
 	forgetPassword, err := u.userRepository.FindUserByResetToken(req.ResetToken)
 	if err != nil {
 		return fmt.Errorf("reset token not matched: %v", err)
@@ -204,4 +273,23 @@ func (u *userUsecase) ResetPassword(req *domain.ResetPasswordReq) error {
 	}
 
 	return nil
+}
+
+func (u *userUsecase) ResetPasswordGrpc(req *userPb.ResetPasswordReq) (*userPb.ResetPasswordRes, error) {
+	resetPasswordReq := &domain.ResetPasswordReq{
+		ResetToken: req.ResetToken,
+		Password:   req.Password,
+	}
+	err := u.resetPasswordLogic(resetPasswordReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &userPb.ResetPasswordRes{
+		Message: "Password updated successfully",
+	}, nil
+}
+
+func (u *userUsecase) ResetPassword(req *domain.ResetPasswordReq) error {
+	return u.resetPasswordLogic(req)
 }

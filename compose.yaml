@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  mysql:
+    image: mysql:8.3
+    container_name: user_module_mysql
+    command: mysqld --user=root --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_DATABASE=user_module
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=root
+
+  mysql-test:
+    image: mysql:8.3
+    container_name: user_module_mysql-test
+    command: mysqld --user=root --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - 3307:3306
+    environment:
+      - MYSQL_DATABASE=user_module
+      - MYSQL_USER=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_ROOT_PASSWORD=root
