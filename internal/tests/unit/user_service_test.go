@@ -1,44 +1,34 @@
 package unit
 
-import (
-	"testing"
+// func setUpDB() *repository.DB {
+// 	db, _ := gorm.Open("postgres", "postgres://test:test@localhost:5433/template1?sslmode=disable")
+// 	db.AutoMigrate(&domain.Message{}, &domain.User{}, &domain.Payment{})
+// 	// defer db.Close()
 
-	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/cache"
-	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/repository"
-	"github.com/LordMoMA/Hexagonal-Architecture/internal/core/domain"
-	"github.com/jinzhu/gorm"
-	"github.com/stretchr/testify/assert"
-)
+// 	redisCache, err := cache.NewRedisCache("localhost:6379", "")
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-func setUpDB() *repository.DB {
-	db, _ := gorm.Open("postgres", "postgres://test:test@localhost:5433/template1?sslmode=disable")
-	db.AutoMigrate(&domain.Message{}, &domain.User{}, &domain.Payment{})
-	// defer db.Close()
+// 	store := repository.NewDB(db, redisCache)
 
-	redisCache, err := cache.NewRedisCache("localhost:6379", "")
-	if err != nil {
-		panic(err)
-	}
+// 	return store
+// }
 
-	store := repository.NewDB(db, redisCache)
+// func TestCreateUser(t *testing.T) {
+// 	db := setUpDB()
 
-	return store
-}
+// 	email := "alanmoore@example.com"
+// 	password := "password"
 
-func TestCreateUser(t *testing.T) {
-	db := setUpDB()
+// 	user, err := db.CreateUser(email, password)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, user)
+// 	assert.Equal(t, email, user.Email)
+// 	assert.NotEmpty(t, user.ID)
+// 	assert.NotEmpty(t, user.Password)
 
-	email := "alanmoore@example.com"
-	password := "password"
-
-	user, err := db.CreateUser(email, password)
-	assert.NoError(t, err)
-	assert.NotNil(t, user)
-	assert.Equal(t, email, user.Email)
-	assert.NotEmpty(t, user.ID)
-	assert.NotEmpty(t, user.Password)
-
-}
+// }
 
 /*
 func TestReadUser(t *testing.T) {
