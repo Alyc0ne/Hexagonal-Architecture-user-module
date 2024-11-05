@@ -25,9 +25,10 @@ func NewUserRepository(db *gorm.DB) UserRepositoryService {
 }
 
 func (r *userRepository) FindUserByEmail(email string) (*domain.User, error) {
-	user := new(domain.User)
+	query := "select id, email, password from users where email = ?"
 
-	tx := r.db.First(user, "email = ?", email)
+	user := new(domain.User)
+	tx := r.db.Raw(query, email).Scan(user)
 	if tx.RowsAffected == 0 || tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -36,8 +37,10 @@ func (r *userRepository) FindUserByEmail(email string) (*domain.User, error) {
 }
 
 func (r *userRepository) FindUserByResetToken(resetToken string) (*domain.ForgetPassword, error) {
+	query := "select id, email, reset_token from forget_passwords where reset_token = ?"
+
 	forgetPassword := new(domain.ForgetPassword)
-	tx := r.db.First(forgetPassword, "reset_token = ?", resetToken)
+	tx := r.db.Raw(query, resetToken).Scan(forgetPassword)
 	if tx.RowsAffected == 0 || tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -47,7 +50,7 @@ func (r *userRepository) FindUserByResetToken(resetToken string) (*domain.Forget
 
 func (r *userRepository) CreateUser(userModel *domain.User) error {
 	tx := r.db.Create(userModel)
-	if tx.Error != nil {
+	if tx.RowsAffected == 0 || tx.Error != nil {
 		return tx.Error
 	}
 

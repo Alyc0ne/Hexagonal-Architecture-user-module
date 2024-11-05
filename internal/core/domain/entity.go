@@ -2,9 +2,9 @@ package domain
 
 type (
 	User struct {
-		ID       string `json:"id" gorm:"id"`
-		Email    string `json:"email" gorm:"email"`
-		Password string `json:"password" gorm:"password"`
+		ID       string `json:"id" gorm:"primaryKey;type:varchar(50); not null"`
+		Email    string `json:"email" gorm:"type:varchar(100); not null"`
+		Password string `json:"password" gorm:"type:varchar(50); not null"`
 	}
 
 	ForgetPassword struct {
