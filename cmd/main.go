@@ -41,8 +41,10 @@ func main() {
 
 	db.AutoMigrate(&domain.User{}, &domain.ForgetPassword{})
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+
 	userRepo := repository.NewUserRepository(db)
-	userService = services.NewUserUsecase(userRepo)
+	userService = services.NewUserUsecase(jwtSecret, userRepo)
 
 	InitRoutes()
 }

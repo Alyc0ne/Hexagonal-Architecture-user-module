@@ -12,7 +12,7 @@ type (
 
 		CreateUser(userModel *domain.User) error
 		UpdateUser(userModel *domain.User) error
-		CreateForgetPassword(userModel *domain.ForgetPassword) error
+		CreateForgetPassword(forgetPasswordModel *domain.ForgetPassword) error
 	}
 
 	userRepository struct {

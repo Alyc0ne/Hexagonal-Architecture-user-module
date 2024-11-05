@@ -21,12 +21,13 @@ type (
 	}
 
 	userUsecase struct {
+		jwtSecret      string
 		userRepository repository.UserRepositoryService
 	}
 )
 
-func NewUserUsecase(userRepository repository.UserRepositoryService) UserUsecaseService {
-	return &userUsecase{userRepository}
+func NewUserUsecase(jwtSecret string, userRepository repository.UserRepositoryService) UserUsecaseService {
+	return &userUsecase{jwtSecret, userRepository}
 }
 
 func (u *userUsecase) verifyPassword(hash, password string) error {
@@ -76,18 +77,13 @@ func (u *userUsecase) generateRefreshToken(userID, jwtSecret string) (string, er
 	return token.SignedString([]byte(jwtSecret))
 }
 
-func (u *userUsecase) generateAccessTokenByLogin(userId string) (*domain.AccessToken, error) {
-	apiCfg, err := repository.LoadAPIConfig()
+func (u *userUsecase) generateAccessTokenByLogin(JWTSecret, userId string) (*domain.AccessToken, error) {
+	accessToken, err := u.generateAccessToken(userId, JWTSecret)
 	if err != nil {
 		return nil, err
 	}
 
-	accessToken, err := u.generateAccessToken(userId, apiCfg.JWTSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := u.generateRefreshToken(userId, apiCfg.JWTSecret)
+	refreshToken, err := u.generateRefreshToken(userId, JWTSecret)
 
 	if err != nil {
 		return nil, err
@@ -111,7 +107,7 @@ func (u *userUsecase) LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes,
 		return nil, errors.New("password not matched")
 	}
 
-	token, err := u.generateAccessTokenByLogin(user.ID)
+	token, err := u.generateAccessTokenByLogin(u.jwtSecret, user.ID)
 	if err != nil {
 		fmt.Println("Error generating access token: ", err)
 		return nil, errors.New("error generating access token")
@@ -129,6 +125,15 @@ func (u *userUsecase) CreateUser(req *domain.CreateUserReq) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("password not hashed: %v", err)
+	}
+
+	userRes, err := u.userRepository.FindUserByEmail(req.Email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if userRes != nil && userRes.ID != "" && userRes.Email == req.Email {
+		return errors.New("user already exists")
 	}
 
 	user := &domain.User{
@@ -174,6 +179,10 @@ func (u *userUsecase) ResetPassword(req *domain.ResetPasswordReq) error {
 	}
 
 	if forgetPassword == nil {
+		return errors.New("reset token not matched")
+	}
+
+	if forgetPassword.ResetToken != req.ResetToken {
 		return errors.New("reset token not matched")
 	}
 
