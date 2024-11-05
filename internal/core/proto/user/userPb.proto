@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option go_package = "github.com/LordMoMA/Hexagonal-Architecture";
+
+message LoginGrpcReq {
+    string email = 1;
+    string password = 2;
+}
+
+message LoginGrpcRes {
+    string id = 1;
+    string email = 2;
+    string access_token = 3;
+    string refresh_token = 4;
+}
+
+message CreateUserGrpcReq {
+    string email = 1;
+    string password = 2;
+}
+
+message CreateUserGrpcRes {
+    string message = 1;
+}
+
+message ForgetPasswordReq {
+    string email = 1;
+}
+
+message ForgetPasswordRes {
+    string reset_token = 1;
+}
+
+message ResetPasswordReq {
+    string reset_token = 1;
+    string password = 2;
+}
+
+message ResetPasswordRes {
+    string message = 1;
+}
+
+service UserGrpcService {
+    rpc LoginGrpc(LoginGrpcReq) returns (LoginGrpcRes);
+    rpc CreateUserGrpc(CreateUserGrpcReq) returns (CreateUserGrpcRes);
+    rpc ForgetPassword(ForgetPasswordReq) returns (ForgetPasswordRes);
+    rpc ResetPassword (ResetPasswordReq) returns (ResetPasswordRes);
+}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/grpccon"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/handler"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/adapters/repository"
 	"github.com/LordMoMA/Hexagonal-Architecture/internal/core/domain"
@@ -15,6 +16,8 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/joho/godotenv"
+
+	userPb "github.com/LordMoMA/Hexagonal-Architecture/internal/core/proto/user"
 )
 
 var (
@@ -47,6 +50,7 @@ func main() {
 	userService = services.NewUserUsecase(jwtSecret, userRepo)
 
 	InitRoutes()
+	// InitGrpc()
 }
 
 func InitRoutes() {
@@ -56,12 +60,22 @@ func InitRoutes() {
 
 	v1 := router.Group("/v1")
 
-	userHandler := handler.NewUserHttpHandler(userService)
+	userHttpHandler := handler.NewUserHttpHandler(userService)
+	userGrpcHandler := handler.NewUserGrpcHandler(userService)
 
-	v1.POST("/login", userHandler.LoginUser)
-	v1.POST("/forgetpassword", userHandler.ForgetPassword)
-	v1.PUT("/reset-password", userHandler.ResetPassword)
-	v1.POST("/users", userHandler.CreateUser)
+	go func() {
+		host := "localhost:4444"
+		grpcServer, lis := grpccon.NewGrpcServer(host)
+		userPb.RegisterUserGrpcServiceServer(grpcServer, userGrpcHandler)
+
+		log.Printf("User gRPC server listening on %s", host)
+		grpcServer.Serve(lis)
+	}()
+
+	v1.POST("/login", userHttpHandler.LoginUser)
+	v1.POST("/forgetpassword", userHttpHandler.ForgetPassword)
+	v1.PUT("/reset-password", userHttpHandler.ResetPassword)
+	v1.POST("/users", userHttpHandler.CreateUser)
 
 	err := router.Run(":4242")
 	if err != nil {
