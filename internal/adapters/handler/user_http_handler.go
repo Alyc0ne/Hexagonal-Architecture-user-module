@@ -10,6 +10,7 @@ import (
 
 type (
 	UserHttpHandlerService interface {
+		ReadUser(ctx *gin.Context)
 		LoginUser(ctx *gin.Context)
 		CreateUser(ctx *gin.Context)
 		ForgetPassword(ctx *gin.Context)
@@ -23,6 +24,16 @@ type (
 
 func NewUserHttpHandler(userUsecase services.UserUsecaseService) UserHttpHandlerService {
 	return &userHttpHandler{userUsecase}
+}
+
+func (h *userHttpHandler) ReadUser(ctx *gin.Context) {
+	response, err := h.userUsecase.ReadUsers()
+	if err != nil {
+		HandleError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (h *userHttpHandler) LoginUser(ctx *gin.Context) {
