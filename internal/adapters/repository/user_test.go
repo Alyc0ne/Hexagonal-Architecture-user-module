@@ -31,13 +31,41 @@ func NewMockDB() (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
+func TestReadUsers(t *testing.T) {
+	db, mock := NewMockDB()
+	repo := repository.NewUserRepository(db)
+
+	t.Run("Read Users Found", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"id", "email", "password", "role"}).AddRow(uuid.New().String(), "quardruple@gmail.com", "password", "member")
+		mock.ExpectQuery("select id, email, password, role from users").WillReturnRows(rows)
+
+		user, err := repo.ReadUsers()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, user)
+		assert.NotEqual(t, 0, len(*user))
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Find User By Email Not Found", func(t *testing.T) {
+		mock.ExpectQuery("select id, email, password, role from users").WillReturnError(gorm.ErrRecordNotFound)
+
+		user, err := repo.ReadUsers()
+
+		assert.Error(t, err)
+		assert.Nil(t, user)
+		assert.Equal(t, gorm.ErrRecordNotFound, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestFindUserByEmail(t *testing.T) {
 	db, mock := NewMockDB()
 	repo := repository.NewUserRepository(db)
 
 	t.Run("Find User By Email Found", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"id", "email", "password"}).AddRow(uuid.New().String(), "quardruple@gmail.com", "password")
-		mock.ExpectQuery("select id, email, password from users where email = \\?").WithArgs("quardruple@gmail.com").WillReturnRows(rows)
+		rows := sqlmock.NewRows([]string{"id", "email", "password", "role"}).AddRow(uuid.New().String(), "quardruple@gmail.com", "password", "member")
+		mock.ExpectQuery("select id, email, password, role from users where email = \\?").WithArgs("quardruple@gmail.com").WillReturnRows(rows)
 
 		user, err := repo.FindUserByEmail("quardruple@gmail.com")
 
@@ -48,7 +76,7 @@ func TestFindUserByEmail(t *testing.T) {
 	})
 
 	t.Run("Find User By Email Not Found", func(t *testing.T) {
-		mock.ExpectQuery("select id, email, password from users where email = \\?").WithArgs("quardruple@gmail.com").WillReturnError(gorm.ErrRecordNotFound)
+		mock.ExpectQuery("select id, email, password, role from users where email = \\?").WithArgs("quardruple@gmail.com").WillReturnError(gorm.ErrRecordNotFound)
 
 		user, err := repo.FindUserByEmail("quardruple@gmail.com")
 

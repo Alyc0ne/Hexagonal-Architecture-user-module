@@ -12,6 +12,7 @@ import (
 )
 
 type mockUserRepository struct {
+	readUsers            func() (*[]domain.User, error)
 	countUserByEmail     func(email string) (int, error)
 	findUserByEmail      func(email string) (*domain.User, error)
 	findUserByResetToken func(resetToken string) (*domain.ForgetPassword, error)
@@ -19,6 +20,10 @@ type mockUserRepository struct {
 	createUser           func(userModel *domain.User) error
 	updateUser           func(userModel *domain.User) error
 	createForgetPassword func(forgetPasswordModel *domain.ForgetPassword) error
+}
+
+func (m *mockUserRepository) ReadUsers() (*[]domain.User, error) {
+	return m.readUsers()
 }
 
 func (m *mockUserRepository) CountUserByEmail(email string) (int, error) {
@@ -43,6 +48,37 @@ func (m *mockUserRepository) UpdateUser(userModel *domain.User) error {
 
 func (m *mockUserRepository) CreateForgetPassword(forgetPasswordModel *domain.ForgetPassword) error {
 	return m.createForgetPassword(forgetPasswordModel)
+}
+
+func TestReadUsers(t *testing.T) {
+	t.Run("Read Users Success", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			readUsers: func() (*[]domain.User, error) {
+				return &[]domain.User{{ID: uuid.New().String(), Email: "quardruple@gmail.com"}}, nil
+			},
+		}
+
+		service := services.NewUserUsecase("jwtSecret", mockRepo)
+		res, err := service.ReadUsers()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("Read Users Fail", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			readUsers: func() (*[]domain.User, error) {
+				return nil, nil
+			},
+		}
+
+		service := services.NewUserUsecase("jwtSecret", mockRepo)
+		res, err := service.ReadUsers()
+
+		assert.Error(t, err)
+		assert.Nil(t, res)
+		assert.Equal(t, "users not found", err.Error())
+	})
 }
 
 func TestLoginUser(t *testing.T) {
