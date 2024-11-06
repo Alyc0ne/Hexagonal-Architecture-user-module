@@ -7,6 +7,7 @@ import (
 
 type (
 	UserRepositoryService interface {
+		ReadUsers() (*[]domain.User, error)
 		CountUserByEmail(email string) (int, error)
 		FindUserByEmail(email string) (*domain.User, error)
 		FindUserByResetToken(resetToken string) (*domain.ForgetPassword, error)
@@ -25,6 +26,18 @@ func NewUserRepository(db *gorm.DB) UserRepositoryService {
 	return &userRepository{db}
 }
 
+func (r *userRepository) ReadUsers() (*[]domain.User, error) {
+	query := "select id, email, password, role from users"
+
+	users := new([]domain.User)
+	tx := r.db.Raw(query).Scan(users)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return users, nil
+}
+
 func (r *userRepository) CountUserByEmail(email string) (int, error) {
 	query := "select count(*) as count from users where email = ?"
 
@@ -38,7 +51,7 @@ func (r *userRepository) CountUserByEmail(email string) (int, error) {
 }
 
 func (r *userRepository) FindUserByEmail(email string) (*domain.User, error) {
-	query := "select id, email, password from users where email = ?"
+	query := "select id, email, password, role from users where email = ?"
 
 	user := new(domain.User)
 	tx := r.db.Raw(query, email).Scan(user)

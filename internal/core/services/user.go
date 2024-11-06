@@ -16,6 +16,8 @@ import (
 
 type (
 	UserUsecaseService interface {
+		ReadUsers() (*[]domain.User, error)
+
 		LoginGrpc(req *userPb.LoginGrpcReq) (*userPb.LoginGrpcRes, error)
 		LoginUser(req *domain.LoginUserReq) (*domain.LoginUserRes, error)
 
@@ -37,6 +39,19 @@ type (
 
 func NewUserUsecase(jwtSecret string, userRepository repository.UserRepositoryService) UserUsecaseService {
 	return &userUsecase{jwtSecret, userRepository}
+}
+
+func (u *userUsecase) ReadUsers() (*[]domain.User, error) {
+	users, err := u.userRepository.ReadUsers()
+	if err != nil {
+		return nil, errors.New("users not found")
+	}
+
+	if users == nil {
+		return nil, errors.New("users not found")
+	}
+
+	return users, nil
 }
 
 func (u *userUsecase) verifyPassword(hash, password string) error {
@@ -172,6 +187,7 @@ func (u *userUsecase) createUserLogic(req *domain.CreateUserReq) error {
 		ID:       uuid.New().String(),
 		Email:    req.Email,
 		Password: string(hashedPassword),
+		Role:     "member",
 	}
 
 	err = u.userRepository.CreateUser(user)
